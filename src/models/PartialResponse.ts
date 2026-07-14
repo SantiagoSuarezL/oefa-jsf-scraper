@@ -1,9 +1,9 @@
 export interface PartialUpdate {
   id: string;
-  html: string;
+  content: string;
 }
 
 export interface PartialResponseData {
   updates: PartialUpdate[];
-  viewState: string;
+  viewState: string | null;
 }
