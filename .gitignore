@@ -141,3 +141,14 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# AI
+CLAUDE.md
+DESAFIO.md
+opencode.json
+PROMPT.md
+.agent/
+
+# Scraper output (PDFs, JSON de resultados, fallidos)
+output/
+*.failed.json
