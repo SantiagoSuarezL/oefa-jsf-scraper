@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<partial-response>
+  <changes>
+    <update id="listarDetalleInfraccionRAAForm:pgLista"><![CDATA[<div id="listarDetalleInfraccionRAAForm:pgLista">
+  <table id="listarDetalleInfraccionRAAForm:dt" class="ui-datatable">
+    <thead>
+      <tr>
+        <th>Nro</th>
+        <th>Número de expediente</th>
+        <th>Administrado</th>
+        <th>Unidad fiscalizable</th>
+        <th>Sector</th>
+        <th>Número de Resolución</th>
+        <th>Archivo</th>
+      </tr>
+    </thead>
+    <tbody class="ui-datatable-data">
+      <tr data-ri="0" class="ui-widget-content">
+        <td>1</td>
+        <td>EXP-2024-001</td>
+        <td>EMPRESA S.A.C.</td>
+        <td>UNIDAD X</td>
+        <td>MINERÍA</td>
+        <td>RES-123</td>
+        <td>
+          <button onclick="mojarra.jsfcljs(document.getElementById('listarDetalleInfraccionRAAForm'),{'listarDetalleInfraccionRAAForm:dt:0:j_idt63':'listarDetalleInfraccionRAAForm:dt:0:j_idt63','param_uuid':'62d415af-6462-4b14-9cab-a95717cc91f9'},'');">PDF</button>
+        </td>
+      </tr>
+      <tr data-ri="1" class="ui-widget-content">
+        <td>2</td>
+        <td>EXP-2024-002</td>
+        <td>OTRA EMPRESA S.A.C.</td>
+        <td>UNIDAD Y</td>
+        <td>HIDROCARBUROS</td>
+        <td>RES-124</td>
+        <td>
+          <button onclick="mojarra.jsfcljs(document.getElementById('listarDetalleInfraccionRAAForm'),{'listarDetalleInfraccionRAAForm:dt:1:j_idt63':'listarDetalleInfraccionRAAForm:dt:1:j_idt63','param_uuid':'71e529b0-1234-4b14-9cab-a95717cc9999'},'');">PDF</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <span class="ui-paginator-current">(1 of 2)</span>
+</div>]]></update>
+    <update id="j_id1:javax.faces.ViewState:0"><![CDATA[-8765432109876543210:state-after-search-e2e]]></update>
+  </changes>
+</partial-response>

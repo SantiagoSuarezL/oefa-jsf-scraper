@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<partial-response>
+  <changes>
+    <update id="listarDetalleInfraccionRAAForm:pgLista"><![CDATA[<div id="listarDetalleInfraccionRAAForm:pgLista">
+  <table id="listarDetalleInfraccionRAAForm:dt" class="ui-datatable">
+    <tbody class="ui-datatable-data">
+      <tr data-ri="0" class="ui-widget-content">
+        <td>3</td>
+        <td>EXP-2024-003</td>
+        <td>TERCERA EMPRESA S.R.L.</td>
+        <td>UNIDAD Z</td>
+        <td>ELECTRICIDAD</td>
+        <td>RES-125</td>
+        <td>
+          <button onclick="mojarra.jsfcljs(document.getElementById('listarDetalleInfraccionRAAForm'),{'listarDetalleInfraccionRAAForm:dt:0:j_idt63':'listarDetalleInfraccionRAAForm:dt:0:j_idt63','param_uuid':'0c31e2e0-4e20-4558-a82f-02de3426eba7'},'');">PDF</button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+  <span class="ui-paginator-current">(2 of 2)</span>
+</div>]]></update>
+    <update id="j_id1:javax.faces.ViewState:0"><![CDATA[-8765432109876543210:state-after-page2-e2e]]></update>
+  </changes>
+</partial-response>

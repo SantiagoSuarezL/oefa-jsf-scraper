@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>OEFA - Consulta de Resoluciones</title>
+</head>
+<body>
+  <form id="listarDetalleInfraccionRAAForm" method="post"
+        action="/repdig/consulta/consultaTfa.xhtml"
+        enctype="application/x-www-form-urlencoded">
+    <input type="hidden" name="listarDetalleInfraccionRAAForm" value="listarDetalleInfraccionRAAForm" />
+    <input type="text" name="listarDetalleInfraccionRAAForm:txtNroexp" id="listarDetalleInfraccionRAAForm:txtNroexp" />
+    <select name="listarDetalleInfraccionRAAForm:idsector" id="listarDetalleInfraccionRAAForm:idsector">
+      <option value="">Todos</option>
+      <option value="1">MINERÍA</option>
+      <option value="2">ELECTRICIDAD</option>
+      <option value="3">HIDROCARBUROS</option>
+      <option value="8">PESQUERÍA</option>
+      <option value="9">INDUSTRIA</option>
+    </select>
+    <input type="hidden" name="listarDetalleInfraccionRAAForm:j_idt21" />
+    <input type="hidden" name="listarDetalleInfraccionRAAForm:j_idt25" />
+    <input type="hidden" name="listarDetalleInfraccionRAAForm:j_idt34" />
+    <button id="listarDetalleInfraccionRAAForm:btnBuscar" type="submit">Buscar</button>
+    <input type="hidden" name="javax.faces.ViewState"
+           value="-8765432109876543210:-9876543210state-init-e2e" />
+  </form>
+</body>
+</html>
