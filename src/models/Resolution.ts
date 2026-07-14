@@ -8,6 +8,7 @@ export const ResolutionSchema = z.object({
   sector: z.string().min(1),
   numeroResolucion: z.string().min(1),
   uuid: z.string().uuid(),
+  pdfButtonId: z.string().min(1),
 });
 
 export type ResolutionRow = z.infer<typeof ResolutionSchema>;

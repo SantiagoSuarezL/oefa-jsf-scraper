@@ -14,6 +14,7 @@ const envSchema = z.object({
   OEFA_RETRY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   OEFA_RETRY_BASE_DELAY_MS: z.coerce.number().int().min(0).default(1000),
   OEFA_RETRY_MAX_DELAY_MS: z.coerce.number().int().min(0).default(30000),
+  OEFA_RETRY_JITTER_MS: z.coerce.number().int().min(0).default(500),
   OEFA_HTTP_TIMEOUT_MS: z.coerce.number().int().positive().default(30000),
   OEFA_USER_AGENT: z.string().min(1).default(
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
@@ -32,6 +33,7 @@ export interface AppConfig {
   retryMaxAttempts: number;
   retryBaseDelayMs: number;
   retryMaxDelayMs: number;
+  retryJitterMs: number;
   httpTimeoutMs: number;
   userAgent: string;
   logLevel: "debug" | "info" | "warn" | "error";
@@ -50,6 +52,7 @@ export function loadConfig(): AppConfig {
     retryMaxAttempts: parsed.OEFA_RETRY_MAX_ATTEMPTS,
     retryBaseDelayMs: parsed.OEFA_RETRY_BASE_DELAY_MS,
     retryMaxDelayMs: parsed.OEFA_RETRY_MAX_DELAY_MS,
+    retryJitterMs: parsed.OEFA_RETRY_JITTER_MS,
     httpTimeoutMs: parsed.OEFA_HTTP_TIMEOUT_MS,
     userAgent: parsed.OEFA_USER_AGENT,
     logLevel: parsed.OEFA_LOG_LEVEL,

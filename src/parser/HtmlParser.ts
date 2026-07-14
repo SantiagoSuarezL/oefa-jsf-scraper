@@ -7,6 +7,7 @@ import {
 } from "../models/Resolution.js";
 
 const UUID_ONCLICK = /param_uuid'\s*:\s*'([^']+)'/;
+const BUTTON_ID_ONCLICK = /'([^']+)'\s*:\s*'\1'/;
 
 export class HtmlParseError extends Error {
   constructor(message: string) {
@@ -25,6 +26,12 @@ function cellText($: cheerio.CheerioAPI, row: Element): string[] {
 function extractUuid($: cheerio.CheerioAPI, row: Element): string {
   const onClick = $(row).find("td").last().find("[onclick]").attr("onclick") ?? "";
   const match = UUID_ONCLICK.exec(onClick);
+  return match ? match[1]! : "";
+}
+
+function extractPdfButtonId($: cheerio.CheerioAPI, row: Element): string {
+  const onClick = $(row).find("td").last().find("[onclick]").attr("onclick") ?? "";
+  const match = BUTTON_ID_ONCLICK.exec(onClick);
   return match ? match[1]! : "";
 }
 
@@ -52,6 +59,7 @@ export function parseDataTable(html: string): ResolutionRow[] {
       sector: cells[4] ?? "",
       numeroResolucion: cells[5] ?? "",
       uuid: extractUuid($, row),
+      pdfButtonId: extractPdfButtonId($, row),
     };
 
     const parsed = ResolutionSchema.safeParse(raw);

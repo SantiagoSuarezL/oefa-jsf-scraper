@@ -4,10 +4,21 @@ import axios, {
   type AxiosRequestConfig,
   type GenericAbortSignal,
 } from "axios";
+import { type Readable } from "node:stream";
 import { CookieJar } from "tough-cookie";
 import { wrapper } from "axios-cookiejar-support";
 import type { AppConfig } from "../config/index.js";
 import type { Logger } from "../utils/Logger.js";
+
+export class HttpResponseError extends Error {
+  constructor(
+    public readonly status: number,
+    message?: string
+  ) {
+    super(message ?? `Respuesta HTTP con estado ${status}`);
+    this.name = "HttpResponseError";
+  }
+}
 
 export interface HttpClientOptions {
   timeoutMs: number;
@@ -108,6 +119,38 @@ export class HttpClient {
     );
 
     return response.data;
+  }
+
+  async postFormStream(
+    path: string,
+    params: Record<string, string>,
+    options?: { signal?: GenericAbortSignal; extraHeaders?: Record<string, string> }
+  ): Promise<{ status: number; stream: Readable }> {
+    this.logger.debug(
+      { path, fieldCount: Object.keys(params).length },
+      "POST form stream request"
+    );
+
+    const body = new URLSearchParams(params);
+
+    const config: AxiosRequestConfig = {
+      responseType: "stream",
+      validateStatus: () => true,
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        ...options?.extraHeaders,
+      },
+    };
+    if (options?.signal) config.signal = options.signal;
+
+    const response = await this.client.post<Readable>(path, body, config);
+
+    this.logger.debug(
+      { path, status: response.status },
+      "POST form stream response recibida"
+    );
+
+    return { status: response.status, stream: response.data };
   }
 
   isNetworkError(error: unknown): error is AxiosError {
