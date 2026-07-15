@@ -45,6 +45,12 @@ export class PdfDownloader {
   }
 
   async download(row: ResolutionRow): Promise<{ ok: boolean; path?: string }> {
+    // Saltar filas sin uuid o pdfButtonId (no tienen PDF descargable)
+    if (!row.uuid || !row.pdfButtonId) {
+      this.logger.debug({ numeroExpediente: row.numeroExpediente }, "Fila sin UUID o botón PDF, se omite descarga");
+      return { ok: true };
+    }
+
     const viewState = this.session.getViewState();
     const params = buildDownloadParams(viewState, row.pdfButtonId, row.uuid);
     const finalPath = this.storage.buildPath(row);

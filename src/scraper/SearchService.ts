@@ -49,7 +49,9 @@ export class SearchService {
       );
     }
 
-    const rows = parseDataTable(pgLista.content);
+    const parsed = parseDataTable(pgLista.content);
+    const rows = parsed.rows;
+    const noPdfCount = parsed.noPdfCount;
     const totalRecords = extractTotalRecords(pgLista.content);
 
     if (!partial.viewState) {
@@ -59,7 +61,7 @@ export class SearchService {
     this.session.updateViewState(partial.viewState);
 
     this.logger.info(
-      { rows: rows.length, totalRecords, viewStateUpdated: true },
+      { rows: rows.length, noPdfCount, totalRecords, viewStateUpdated: true },
       "Busqueda completada"
     );
 
@@ -67,6 +69,7 @@ export class SearchService {
       rows,
       totalRecords,
       viewState: partial.viewState,
+      noPdfCount,
     };
   }
 }

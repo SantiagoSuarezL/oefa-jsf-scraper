@@ -33,8 +33,26 @@ function isSectorId(value: string): value is SectorId {
   return ["", "1", "2", "3", "8", "9"].includes(value);
 }
 
+function parseLimit(argv: readonly string[]): number | undefined {
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i] ?? "";
+    const eq = /^--limit=(\d+)$/.exec(arg);
+    if (eq) return Number(eq[1]);
+    if (arg === "--limit") {
+      const value = argv[i + 1];
+      if (value != null && /^\d+$/.test(value)) {
+        return Number(value);
+      }
+    }
+  }
+  return undefined;
+}
+
 async function main(): Promise<void> {
-  const config = loadConfig();
+  const baseConfig = loadConfig();
+  const limit = parseLimit(process.argv.slice(2));
+  const config =
+    limit != null ? { ...baseConfig, maxDownloads: limit } : baseConfig;
   const logger = createLogger(config);
 
   const filters = parseFilters(process.argv.slice(2));

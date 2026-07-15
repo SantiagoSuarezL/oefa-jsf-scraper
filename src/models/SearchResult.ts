@@ -4,4 +4,5 @@ export interface SearchResult {
   rows: ResolutionRow[];
   totalRecords: number | null;
   viewState: string;
+  noPdfCount: number;
 }

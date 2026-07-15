@@ -33,11 +33,12 @@ describe("parseDataTable", () => {
   });
 
   it("devuelve arreglo vacio si no hay filas", () => {
-    expect(parseDataTable("<div>sin tabla</div>")).toEqual([]);
+    expect(parseDataTable("<div>sin tabla</div>")).toEqual({ rows: [], noPdfCount: 0 });
   });
 
   it("extrae y valida las filas con su uuid", () => {
-    const rows = parseDataTable(DATA_TABLE_HTML);
+    const { rows, noPdfCount } = parseDataTable(DATA_TABLE_HTML);
+    expect(noPdfCount).toBe(0);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toMatchObject({
       numero: 1,
@@ -51,12 +52,16 @@ describe("parseDataTable", () => {
     expect(rows[1]?.uuid).toBe("71e529b0-1234-4b14-9cab-a95717cc9999");
   });
 
-  it("lanza si una fila no cumple el esquema (uuid invalido)", () => {
-    const broken = DATA_TABLE_HTML.replace(
-      "62d415af-6462-4b14-9cab-a95717cc91f9",
-      "NO-ES-UUID"
+  it("cuenta como no-PDF las filas sin param_uuid", () => {
+    // Fila 0 sin botón de descarga (sin param_uuid) -> uuid vacío.
+    const withoutPdf = DATA_TABLE_HTML.replace(
+      /<td><button[\s\S]*?62d415af-6462-4b14-9cab-a95717cc91f9[\s\S]*?<\/button><\/td>/,
+      "<td></td>"
     );
-    expect(() => parseDataTable(broken)).toThrow(/invalida/);
+    const { rows, noPdfCount } = parseDataTable(withoutPdf);
+    expect(noPdfCount).toBe(1);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.uuid).toBe("71e529b0-1234-4b14-9cab-a95717cc9999");
   });
 });
 

@@ -27,7 +27,13 @@ describe("loadConfig", () => {
     expect(config.baseUrl).toBe("https://publico.oefa.gob.pe/repdig/consulta/consultaTfa.xhtml");
     expect(config.outputDir).toBe("./output");
     expect(config.downloadConcurrency).toBe(2);
+    expect(config.maxDownloads).toBe(0);
     expect(config.logLevel).toBe("info");
+  });
+
+  it("debugPagination default es false", () => {
+    process.env.OEFA_BASE_URL = "https://example.com/page.xhtml";
+    expect(loadConfig().debugPagination).toBe(false);
   });
 
   it("sobrescribe defaults con vars de entorno", () => {
@@ -36,6 +42,7 @@ describe("loadConfig", () => {
     process.env.OEFA_ROWS_PER_PAGE = "25";
     process.env.OEFA_DOWNLOAD_CONCURRENCY = "4";
     process.env.OEFA_DOWNLOAD_DELAY_MS = "1000";
+    process.env.OEFA_MAX_DOWNLOADS = "5";
     process.env.OEFA_RETRY_MAX_ATTEMPTS = "3";
     process.env.OEFA_RETRY_BASE_DELAY_MS = "500";
     process.env.OEFA_RETRY_MAX_DELAY_MS = "10000";
@@ -48,6 +55,13 @@ describe("loadConfig", () => {
     expect(config.rowsPerPage).toBe(25);
     expect(config.downloadConcurrency).toBe(4);
     expect(config.downloadDelayMs).toBe(1000);
+    expect(config.maxDownloads).toBe(5);
+    process.env.OEFA_DEBUG_PAGINATION = "1";
+    expect(loadConfig().debugPagination).toBe(true);
+    process.env.OEFA_DEBUG_PAGINATION = "0";
+    expect(loadConfig().debugPagination).toBe(false);
+    process.env.OEFA_DEBUG_PAGINATION = "true";
+    expect(loadConfig().debugPagination).toBe(true);
     expect(config.retryMaxAttempts).toBe(3);
     expect(config.retryBaseDelayMs).toBe(500);
     expect(config.retryMaxDelayMs).toBe(10000);

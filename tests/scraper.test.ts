@@ -50,7 +50,10 @@ function makeDeps(overrides: Partial<ScraperDeps>): ScraperDeps {
     } as unknown as SessionManager,
     search: { search: vi.fn() } as unknown as SearchService,
     pagination: { fetchPage: vi.fn() } as unknown as PaginationService,
-    sanity: { assertValid: vi.fn(), checkRows: vi.fn() } as unknown as SanityChecker,
+    sanity: {
+      assertValid: vi.fn(() => ({ summary: [], warnings: [], issues: [] })),
+      checkRows: vi.fn(),
+    } as unknown as SanityChecker,
     downloader: { downloadAll: vi.fn(async () => ({ ok: 1, failed: 0 })) } as unknown as PdfDownloader,
     storage: { buildPath: vi.fn((r: ResolutionRow) => `/tmp/${r.uuid}.pdf`) } as unknown as PdfStorage,
     exporter: { export: vi.fn() } as unknown as JsonExporter,
@@ -68,11 +71,12 @@ describe("Scraper (orquestacion)", () => {
       rows: makeRows(10, 1),
       totalRecords: 25,
       viewState: "v",
+      noPdfCount: 0,
     };
     const fetchPage = vi.fn(async (_f: unknown, first: number, rows: number) => {
-      if (first === 10) return { rows: makeRows(10, 11) };
-      if (first === 20) return { rows: makeRows(5, 21) };
-      return { rows: [] };
+      if (first === 10) return { rows: makeRows(10, 11), noPdfCount: 0 };
+      if (first === 20) return { rows: makeRows(5, 21), noPdfCount: 0 };
+      return { rows: [], noPdfCount: 0 };
     });
 
     const deps = makeDeps({
@@ -90,48 +94,117 @@ describe("Scraper (orquestacion)", () => {
     expect(deps.exporter.export).toHaveBeenCalledTimes(1);
   });
 
-  it("reinicia la sesion y reintenta la misma pagina ante MissingViewStateError", async () => {
+  it("no aborta si PaginationService lanza error en una pagina", async () => {
     process.env.OEFA_BASE_URL = "https://example.com/x.xhtml";
     process.env.OEFA_ROWS_PER_PAGE = "10";
 
     const searchResult: SearchResult = {
       rows: makeRows(10, 1),
-      totalRecords: 20,
+      totalRecords: 30, // necesito 30, search da 10, necesito 20 más (2 páginas)
       viewState: "v",
+      noPdfCount: 0,
     };
     const fetchPage = vi.fn();
-    fetchPage.mockRejectedValueOnce(new MissingViewStateError());
-    fetchPage.mockResolvedValueOnce({ rows: makeRows(10, 11) });
+    // Página 1 OK (first=10), página 2 falla (first=20)
+    fetchPage.mockResolvedValueOnce({ rows: makeRows(10, 11), noPdfCount: 0 });
+    fetchPage.mockRejectedValueOnce(new Error("transient"));
 
-    const restarted = vi.fn();
     const deps = makeDeps({
       search: { search: vi.fn(async () => searchResult) } as unknown as SearchService,
       pagination: { fetchPage } as unknown as PaginationService,
-      session: {
-        init: vi.fn(),
-        restart: restarted,
-        getViewState: vi.fn(() => "v"),
-        updateViewState: vi.fn(),
-      } as unknown as SessionManager,
     });
     const scraper = new Scraper(deps);
 
     const summary = await scraper.run({});
 
-    expect(restarted).toHaveBeenCalledTimes(1);
+    // Scraper llama fetchPage para página 2 (OK), luego página 3 (falla), y se detiene
     expect(fetchPage).toHaveBeenCalledTimes(2);
-    expect(summary.retrieved).toBe(20);
-    expect(summary.paginationOk).toBe(true);
+    expect(summary.retrieved).toBe(20); // 10 del search + 10 de page 1
+    expect(summary.paginationOk).toBe(false); // falla en una página
   });
 
-  it("no aborta todo si la descarga falla; continúa y exporta", async () => {
+  it("con límite acota extracción y descarga a N filas (modo prueba rápida)", async () => {
     process.env.OEFA_BASE_URL = "https://example.com/x.xhtml";
     process.env.OEFA_ROWS_PER_PAGE = "10";
+    process.env.OEFA_MAX_DOWNLOADS = "3";
 
     const searchResult: SearchResult = {
       rows: makeRows(10, 1),
       totalRecords: 10,
       viewState: "v",
+      noPdfCount: 0,
+    };
+
+    const downloadAll = vi.fn(async () => ({ ok: 3, failed: 0 }));
+    const deps = makeDeps({
+      downloader: { downloadAll } as unknown as PdfDownloader,
+    });
+    deps.search = {
+      search: vi.fn(async () => searchResult),
+    } as unknown as SearchService;
+
+    const scraper = new Scraper(deps);
+    const summary = await scraper.run({});
+
+    // No debe paginar: ya alcanzó el límite con la primera página (10 -> recortado a 3)
+    expect(deps.pagination.fetchPage).not.toHaveBeenCalled();
+    // downloadAll recibe solo las 3 filas recortadas
+    expect(downloadAll).toHaveBeenCalledTimes(1);
+    const passedRows = downloadAll.mock.calls[0]![0] as ResolutionRow[];
+    expect(passedRows).toHaveLength(3);
+    // export recibe las mismas 3 filas (extracción acotada)
+    expect(deps.exporter.export).toHaveBeenCalledTimes(1);
+    const exportedRows = deps.exporter.export.mock.calls[0]![0] as ResolutionRow[];
+    expect(exportedRows).toHaveLength(3);
+    expect(summary.retrieved).toBe(3);
+    expect(summary.downloadedOk).toBe(3);
+  });
+
+  it("deduplica filas por UUID antes de descargar/exportar", async () => {
+    process.env.OEFA_BASE_URL = "https://example.com/x.xhtml";
+    process.env.OEFA_ROWS_PER_PAGE = "10";
+    process.env.OEFA_MAX_DOWNLOADS = "0";
+
+    const rows: ResolutionRow[] = [
+      { ...makeRows(1, 1)[0]! }, // uuid-1
+      { ...makeRows(1, 2)[0]! }, // uuid-2
+      { ...makeRows(1, 1)[0]! }, // uuid-1 duplicado
+    ];
+    const searchResult: SearchResult = {
+      rows,
+      totalRecords: 3,
+      viewState: "v",
+      noPdfCount: 0,
+    };
+
+    const downloadAll = vi.fn(async () => ({ ok: 2, failed: 0 }));
+    const deps = makeDeps({
+      downloader: { downloadAll } as unknown as PdfDownloader,
+    });
+    deps.search = {
+      search: vi.fn(async () => searchResult),
+    } as unknown as SearchService;
+
+    const scraper = new Scraper(deps);
+    const summary = await scraper.run({});
+
+    expect(summary.removedDuplicates).toBe(1);
+    expect(summary.retrieved).toBe(2);
+    expect(downloadAll).toHaveBeenCalledTimes(1);
+    const passed = downloadAll.mock.calls[0]![0] as ResolutionRow[];
+    expect(passed).toHaveLength(2);
+  });
+
+  it("no aborta todo si la descarga falla; continúa y exporta", async () => {
+    process.env.OEFA_BASE_URL = "https://example.com/x.xhtml";
+    process.env.OEFA_ROWS_PER_PAGE = "10";
+    process.env.OEFA_MAX_DOWNLOADS = "0";
+
+    const searchResult: SearchResult = {
+      rows: makeRows(10, 1),
+      totalRecords: 10,
+      viewState: "v",
+      noPdfCount: 0,
     };
     const downloadAll = vi.fn(async () => {
       throw new Error("boom");

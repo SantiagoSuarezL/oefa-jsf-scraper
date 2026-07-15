@@ -11,6 +11,11 @@ const envSchema = z.object({
   OEFA_ROWS_PER_PAGE: z.coerce.number().int().positive().default(10),
   OEFA_DOWNLOAD_CONCURRENCY: z.coerce.number().int().positive().max(10).default(2),
   OEFA_DOWNLOAD_DELAY_MS: z.coerce.number().int().min(0).default(500),
+  OEFA_MAX_DOWNLOADS: z.coerce.number().int().min(0).default(0),
+  OEFA_DEBUG_PAGINATION: z
+    .union([z.literal("1"), z.literal("true"), z.literal("0"), z.literal("false"), z.boolean()])
+    .default("false")
+    .transform((v) => v === "1" || v === "true" || v === true),
   OEFA_RETRY_MAX_ATTEMPTS: z.coerce.number().int().positive().default(5),
   OEFA_RETRY_BASE_DELAY_MS: z.coerce.number().int().min(0).default(1000),
   OEFA_RETRY_MAX_DELAY_MS: z.coerce.number().int().min(0).default(30000),
@@ -30,6 +35,8 @@ export interface AppConfig {
   rowsPerPage: number;
   downloadConcurrency: number;
   downloadDelayMs: number;
+  maxDownloads: number;
+  debugPagination: boolean;
   retryMaxAttempts: number;
   retryBaseDelayMs: number;
   retryMaxDelayMs: number;
@@ -49,6 +56,8 @@ export function loadConfig(): AppConfig {
     rowsPerPage: parsed.OEFA_ROWS_PER_PAGE,
     downloadConcurrency: parsed.OEFA_DOWNLOAD_CONCURRENCY,
     downloadDelayMs: parsed.OEFA_DOWNLOAD_DELAY_MS,
+    maxDownloads: parsed.OEFA_MAX_DOWNLOADS,
+    debugPagination: parsed.OEFA_DEBUG_PAGINATION,
     retryMaxAttempts: parsed.OEFA_RETRY_MAX_ATTEMPTS,
     retryBaseDelayMs: parsed.OEFA_RETRY_BASE_DELAY_MS,
     retryMaxDelayMs: parsed.OEFA_RETRY_MAX_DELAY_MS,

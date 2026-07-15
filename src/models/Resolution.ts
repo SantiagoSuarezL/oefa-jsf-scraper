@@ -7,8 +7,8 @@ export const ResolutionSchema = z.object({
   unidadFiscalizable: z.string().min(1),
   sector: z.string().min(1),
   numeroResolucion: z.string().min(1),
-  uuid: z.string().uuid(),
-  pdfButtonId: z.string().min(1),
+  uuid: z.string().uuid().optional(),
+  pdfButtonId: z.string().min(1).optional(),
 });
 
 export type ResolutionRow = z.infer<typeof ResolutionSchema>;

@@ -4,8 +4,8 @@ import type { Logger } from "../utils/Logger.js";
 import type { ResolutionRow } from "../models/Resolution.js";
 
 export interface FailedDownload {
-  uuid: string;
-  pdfButtonId: string;
+  uuid: string | undefined;
+  pdfButtonId: string | undefined;
   numeroExpediente: string;
   attempts: number;
   lastStatus?: number | undefined;
