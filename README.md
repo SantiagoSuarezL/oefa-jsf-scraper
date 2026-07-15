@@ -105,7 +105,7 @@ src/
 │   ├── FailureRecorder.ts      # failed-downloads.json (NDJSON append)
 │   └── JsonExporter.ts         # resoluciones.json pretty
 ├── validation/
-│   ├── SanityChecker.ts        # dup UUIDs, dup expedientes, campos req, total
+│   ├── SanityChecker.ts        # reconciliación a filas únicas (downloadable − dup), expedientes dup = warning
 │   └── PdfValidator.ts         # valida PDFs en disco
 ├── utils/
 │   ├── Logger.ts               # pino + redact cookies
@@ -157,7 +157,7 @@ tests/
 ✅ **Concurrent PDF downloads** — Pool 2–4 workers (`OEFA_DOWNLOAD_CONCURRENCY`)  
 ✅ **Atomic file writes** — Stream → `.tmp` → `rename()`; evita PDFs corruptos parciales  
 ✅ **JSON export** — `resoluciones.json` con `exportedAt`, `count`, `resolutions[]`  
-✅ **Sanity validation** — Duplicados UUID/expediente, campos requeridos, total esperado vs obtenido  
+✅ **Sanity validation** — Reconciliación a filas únicas (`totalRecords − noPdfCount − UUIDs duplicados` vs filas obtenidas); UUIDs duplicados y campos requeridos son ERROR; expedientes duplicados son WARNING (un expediente puede tener varias resoluciones)  
 ✅ **Failure recovery** — `failed-downloads.json` (NDJSON) con uuid, buttonId, status, error, timestamp  
 ✅ **Zero browser automation** — Solo HTTP (axios) + parsing (cheerio, fast-xml-parser)  
 ✅ **TypeScript strict** — `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess`, ESM `NodeNext`  
@@ -178,7 +178,7 @@ tests/
 | **Retry**             | Los PDFs devuelven 429 (rate limit). Backoff exponencial + jitter evita thundering herd.                                                                               | Genérico (`retry<T>(fn, opts)`), independiente de HTTP. `shouldRetry` decide por tipo de error.                                                 |
 | **FailureRecorder**   | Si un PDF falla definitivamente (404, 403), registrar contexto completo para reintento manual posterior.                                                               | NDJSON append (`failed-downloads.json`). Cada línea: uuid, buttonId, expediente, attempts, lastStatus, lastError, timestamp.                    |
 | **PdfStorage**        | Escritura atómica evita PDFs de 0 bytes si el proceso muere a mitad de descarga.                                                                                       | `pipeline(stream, createWriteStream(tmp))` → `stat(tmp)` → `size>0` → `rename(tmp, final)`.                                                     |
-| **SanityChecker**     | Detecta corrupción silenciosa (duplicados, campos vacíos, total mismatch) antes de exportar.                                                                           | Lanza `SanityError` con reporte detallado. `assertValid()` para fail-fast.                                                                      |
+| **SanityChecker**     | Detecta corrupción silenciosa antes de exportar. Valida el conjunto **final de documentos únicos**, no el total bruto del portal.                                       | `expectedUniqueRows = max(totalRecords − noPdfCount − removedDuplicateUuidRows, 0)` comparado contra `uniqueUuids`. UUIDs duplicados y campos vacíos → `issues` (ERROR, lanza `SanityError`); expedientes duplicados → `warnings` (no bloquea). `assertValid()` devuelve `SanityReport` con `summary` de 8 métricas. |
 
 
 ---
@@ -236,12 +236,28 @@ POST btnBuscar (AJAX: Faces-Request=partial/ajax)
 └──────────────────────────────────────────┘
       │
       ▼
-┌──────────────────────────────────────────┐
-│  VALIDACIÓN + EXPORT                     │
-│  SanityChecker.assertValid(rows, total)  │
-│  PdfValidator.validateDownloaded(rows)   │
-│  JsonExporter.export(rows, path)         │
-└──────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│  VALIDACIÓN + EXPORT                                                    │
+│  SanityChecker.assertValid(rows, total, noPdfCount, removedDuplicates)  │
+│  PdfValidator.validateDownloaded(rows)                                  │
+│  JsonExporter.export(rows, path)                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+El `SanityChecker` emite un reporte de 8 líneas (`SanityReport.summary`, nivel INFO;
+ERROR solo si hay discrepancia real del scraper — UUIDs duplicados o campos vacíos):
+
+    Portal rows..............1753
+    Rows without PDF.........132
+    Downloadable rows........1621
+    Duplicate UUID rows......12
+    Expected unique PDFs.....1609
+    Actual unique PDFs.......1609
+    Duplicate expedientes....11 (warning)
+    Sanity result............PASS
+
+`expectedUniqueRows = max(totalRecords − noPdfCount − removedDuplicateUuidRows, 0)`
+se compara contra los UUIDs únicos obtenidos. Los expedientes duplicados son WARNING
+(un mismo expediente puede tener varias resoluciones); el UUID es el identificador único.
 ```
 
 ---
@@ -253,7 +269,7 @@ POST btnBuscar (AJAX: Faces-Request=partial/ajax)
 - **Dependencia de estructura PrimeFaces actual**: si cambian los IDs del formulario (`listarDetalleInfraccionRAAForm`), botones (`btnBuscar`, `dt`), o el paginador (`.ui-paginator-current`), hay que actualizar `FormParamsBuilder` y `HtmlParser`.
 - **Requiere sesión válida**: el scraper obtiene `JSESSIONID` y `ViewState` en el GET inicial. Si el portal introduce CAPTCHA, challenge JS o Cloudflare, el flujo HTTP puro fallará.
 - **Descarga concurrente moderada**: `OEFA_DOWNLOAD_CONCURRENCY=2` (máx 4 recomendado). Valores altos disparan 429 y saturan el portal.
-- `totalRecords` **desde paginador**: el portal muestra “1 – 10 de 1.753” en `.ui-paginator-current`. Si el formato cambia, `extractTotalRecords` devolverá valor incorrecto y el sanity check reportará mismatch.
+- `totalRecords` **desde paginador**: el portal muestra “1 – 10 de 1.753” en `.ui-paginator-current`. Si el formato cambia, `extractTotalRecords` devolverá valor incorrecto y el sanity check reportará mismatch. El sanity check reconcilia el total contra filas **descargables** (`totalRecords − noPdfCount`) y contra filas **únicas** (`− UUIDs duplicados removidos`); por tanto no penaliza las filas sin PDF ni los duplicados propios del portal.
 - **No probado contra portal real en esta sesión**: los tests usan fixtures locales. El primer run real puede revelar diferencias menores (separador de miles, encoding, headers extra).
 - **PDFs grandes**: se hace streaming directo a disco (`responseType: "stream"`), pero no hay verificación de hash/checksum del contenido.
 
@@ -301,6 +317,12 @@ OEFA_ROWS_PER_PAGE=10
 OEFA_DOWNLOAD_CONCURRENCY=2
 OEFA_DOWNLOAD_DELAY_MS=500
 
+# Máximo de filas a procesar end-to-end (0 = todas; útil para pruebas sin recorrer el portal completo)
+OEFA_MAX_DOWNLOADS=0
+
+# Traza de depuración de paginación (1/true = registra rango expediente/uuid por página)
+OEFA_DEBUG_PAGINATION=0
+
 # Reintentos
 OEFA_RETRY_MAX_ATTEMPTS=5
 OEFA_RETRY_BASE_DELAY_MS=1000
@@ -321,17 +343,23 @@ OEFA_LOG_LEVEL=info   # debug | info | warn | error
 
 ```bash
 # Desarrollo (tsx, hot reload)
-npm run dev [-- --sector=1 --expediente=EXP-2024-001]
+npm run dev
 
 # Producción (compilado)
 npm run build
 npm start [-- --sector=1 --expediente=EXP-2024-001]
+
+# Prueba rápida: solo las primeras 5 filas (extracción + descarga acotadas)
+npm run dev -- --limit 5
+# Equivalente vía env:
+OEFA_MAX_DOWNLOADS=5 npm run dev
 ```
 
 **Filtros CLI**:
 
 - `--sector=1|2|3|8|9` (vacío = todos). Ver `SearchFilters.ts` para mapeo: 1=MINERÍA, 2=ELECTRICIDAD, 3=HIDROCARBUROS, 8=PESQUERÍA, 9=INDUSTRIA.
 - `--expediente=NUMERO` (parcial o exacto).
+- `--limit=N` (o `OEFA_MAX_DOWNLOADS=N`): procesa y descarga solo las primeras *N* filas. `0` o ausente = recorre el portal completo. En modo limitado no se exige `retrieved == totalRecords` (esperado).
 
 
 
@@ -351,7 +379,7 @@ output/
 ### Tests
 
 ```bash
-npm test           # 93 tests (unit + integración + e2e)
+npm test           # 103 tests (unit + integración + e2e)
 npm run test:watch # modo watch
 npm run typecheck  # tsc --noEmit
 npm run build      # compila a dist/
